@@ -1,0 +1,62 @@
+version: "3"
+volumes:
+  prometheus_data:
+services:
+  web:
+    image: gsetia/urlshortener:test
+    deploy:
+      replicas: 4
+      restart_policy:
+        condition: on-failure
+    volumes:
+      - "/home/student/repo_a2group05/volumes/log:/application/log"
+    ports:
+      - "4000:80"
+    networks:
+      - gauravnet
+  visualizer:
+    image: dockersamples/visualizer:stable
+    ports:
+      - "8080:8080"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+    deploy:
+      placement:
+        constraints: [node.role == manager]
+    networks:
+      - gauravnet
+  redis:
+    image: redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - "/home/student/repo_a2group05/volumes/redis:/data"
+    deploy:
+      placement:
+        constraints: [node.role == manager]
+    command: redis-server --appendonly yes
+    networks:
+      - gauravnet
+  redis-replica:
+    image: redis:latest
+    command: redis-server --maxmemory 50mb --maxmemory-policy allkeys-lru --appendonly yes --replicaof redis 6379
+    volumes:
+      - "/home/student/repo_a2group05/volumes/redis:/data"
+    deploy:
+      replicas: 1
+      placement:
+        constraints: [node.role == manager]
+    networks:
+      - gauravnet
+  prometheus:
+    image: prom/prometheus:v2.30.3
+    ports:
+      - 9090:9090
+    volumes:
+      - ./prometheus:/etc/prometheus
+      - prometheus_data:/prometheus
+    command: 
+      - '--web.enable-lifecycle' 
+      - '--config.file=/etc/prometheus/prometheus.yml'
+networks:
+  gauravnet:
